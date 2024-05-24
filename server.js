@@ -1,11 +1,9 @@
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
 const { Configuration, OpenAIApi } = require('openai');
-//const pinecone = require('pinecone-client');
-const { PineconeClient } = require('@pinecone-database/pinecone');
-const path = require('path');
-
+const { Pinecone } = require('@pinecone-database/pinecone'); // Correct import for Pinecone
 
 dotenv.config();
 
@@ -22,17 +20,28 @@ const configuration = new Configuration({
 const openai = new OpenAIApi(configuration);
 
 // Initialize Pinecone
-const pinecone = new PineconeClient();
-pinecone.init({
+const pinecone = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY,
   environment: process.env.PINECONE_REGION, // Use the new PINECONE_REGION variable
 });
 
-const index = pinecone.Index('documents');
+const index = pinecone.index('quickstart'); // Use your actual index name here
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+// Function to process and upsert document
+async function processDocument(content, name) {
+  const embedding = await getEmbedding(content);
+  await index.upsert([
+    {
+      id: name,
+      values: embedding,
+      metadata: { category: 'document' } // You can customize metadata as needed
+    }
+  ]);
+}
 
 app.post('/upload', async (req, res) => {
   const { fileContent, fileName } = req.body;
@@ -93,11 +102,9 @@ async function getEmbedding(text) {
   return response.data[0].embedding;
 }
 
-async function processDocument(content, name) {
-  const embedding = await getEmbedding(content);
-  await index.upsert([{ id: name, values: embedding }]);
-}
-
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
 });
+
+
+
