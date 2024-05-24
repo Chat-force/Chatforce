@@ -2,7 +2,8 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
 const { Configuration, OpenAIApi } = require('openai');
-const pinecone = require('pinecone-client');
+//const pinecone = require('pinecone-client');
+const { PineconeClient } = require('@pinecone-database/pinecone');
 const path = require('path');
 
 
@@ -14,10 +15,6 @@ const port = process.env.PORT || 3000;
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Serve static files from the "public" directory
-app.use(express.static(path.join(__dirname, 'public')));
-
-
 // Initialize OpenAI
 const configuration = new Configuration({
   apiKey: process.env.OPENAI_API_KEY,
@@ -25,11 +22,11 @@ const configuration = new Configuration({
 const openai = new OpenAIApi(configuration);
 
 // Initialize Pinecone
+const pinecone = new PineconeClient();
 pinecone.init({
   apiKey: process.env.PINECONE_API_KEY,
   environment: process.env.PINECONE_REGION, // Use the new PINECONE_REGION variable
 });
-
 
 const index = pinecone.Index('documents');
 
@@ -37,18 +34,20 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-
-app.post('/upload', (req, res) => {
+app.post('/upload', async (req, res) => {
   const { fileContent, fileName } = req.body;
 
   if (!fileContent || !fileName) {
     return res.status(400).send('File content and name are required.');
   }
 
-  // Process and store the document
-  processDocument(fileContent, fileName)
-    .then(() => res.send('File successfully uploaded and processed'))
-    .catch(error => res.status(500).send(`Error processing file: ${error.message}`));
+  try {
+    // Process and store the document
+    await processDocument(fileContent, fileName);
+    res.send('File successfully uploaded and processed');
+  } catch (error) {
+    res.status(500).send(`Error processing file: ${error.message}`);
+  }
 });
 
 app.post('/chat', async (req, res) => {
