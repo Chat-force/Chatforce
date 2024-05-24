@@ -26,9 +26,10 @@ const openai = new OpenAIApi(configuration);
 
 // Initialize Pinecone
 pinecone.init({
-  apiKey: TEST,
-  environment: TEST, // Use the new PINECONE_REGION variable
+  apiKey: process.env.PINECONE_API_KEY,
+  environment: process.env.PINECONE_REGION, // Use the new PINECONE_REGION variable
 });
+
 
 const index = pinecone.Index('documents');
 
