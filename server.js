@@ -1,9 +1,8 @@
-
 const express = require('express');
 const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
 const { Configuration, OpenAIApi } = require('openai');
-const { Pinecone } = require('@pinecone-database/pinecone'); // Correct import for Pinecone
+const pinecone = require('pinecone-client');
 
 dotenv.config();
 
@@ -20,43 +19,28 @@ const configuration = new Configuration({
 const openai = new OpenAIApi(configuration);
 
 // Initialize Pinecone
-const pinecone = new Pinecone({
+pinecone.init({
   apiKey: process.env.PINECONE_API_KEY,
   environment: process.env.PINECONE_REGION, // Use the new PINECONE_REGION variable
 });
 
-const index = pinecone.index('quickstart'); // Use your actual index name here
+const index = pinecone.Index('documents');
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Function to process and upsert document
-async function processDocument(content, name) {
-  const embedding = await getEmbedding(content);
-  await index.upsert([
-    {
-      id: name,
-      values: embedding,
-      metadata: { category: 'document' } // You can customize metadata as needed
-    }
-  ]);
-}
-
-app.post('/upload', async (req, res) => {
+app.post('/upload', (req, res) => {
   const { fileContent, fileName } = req.body;
 
   if (!fileContent || !fileName) {
     return res.status(400).send('File content and name are required.');
   }
 
-  try {
-    // Process and store the document
-    await processDocument(fileContent, fileName);
-    res.send('File successfully uploaded and processed');
-  } catch (error) {
-    res.status(500).send(`Error processing file: ${error.message}`);
-  }
+  // Process and store the document
+  processDocument(fileContent, fileName)
+    .then(() => res.send('File successfully uploaded and processed'))
+    .catch(error => res.status(500).send(`Error processing file: ${error.message}`));
 });
 
 app.post('/chat', async (req, res) => {
@@ -102,9 +86,11 @@ async function getEmbedding(text) {
   return response.data[0].embedding;
 }
 
+async function processDocument(content, name) {
+  const embedding = await getEmbedding(content);
+  await index.upsert([{ id: name, values: embedding }]);
+}
+
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
 });
-
-
-
