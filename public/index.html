@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Chatbot</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        .chat-container, .upload-container {
+            width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .messages {
+            max-height: 300px;
+            overflow-y: scroll;
+        }
+        .message {
+            margin: 10px 0;
+        }
+        .user {
+            text-align: right;
+        }
+        .bot {
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="upload-container">
+        <h1>Upload a Document</h1>
+        <form id="upload-form">
+            <input type="file" id="file-input" required>
+            <input type="text" id="file-name" placeholder="Enter file name" required>
+            <button type="submit">Upload</button>
+        </form>
+    </div>
+
+    <div class="chat-container">
+        <div class="messages" id="messages"></div>
+        <input type="text" id="user-input" placeholder="Type your message here" style="width: 80%;">
+        <button id="send-btn">Send</button>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            $('#upload-form').submit(function(e) {
+                e.preventDefault();
+                
+                var fileInput = $('#file-input')[0];
+                if (fileInput.files.length === 0) {
+                    alert('Please select a file.');
+                    return;
+                }
+
+                var reader = new FileReader();
+                reader.onload = function() {
+                    var fileContent = reader.result;
+                    var fileName = $('#file-name').val();
+                    $.ajax({
+                        url: '/upload',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({ fileContent: fileContent, fileName: fileName }),
+                        success: function(response) {
+                            alert(response);
+                        },
+                        error: function(xhr) {
+                            alert('Error: ' + xhr.responseText);
+                        }
+                    });
+                };
+                reader.readAsText(fileInput.files[0]);
+            });
+
+            $('#send-btn').click(function() {
+                var userInput = $('#user-input').val();
+                if (userInput.trim() === '') return;
+
+                $('#messages').append('<div class="message user">' + userInput + '</div>');
+                $('#user-input').val('');
+
+                $.ajax({
+                    url: '/chat',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ message: userInput }),
+                    success: function(response) {
+                        $('#messages').append('<div class="message bot">' + response.response + '</div>');
+                    },
+                    error: function(xhr) {
+                        alert('Error: ' + xhr.responseText);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+
